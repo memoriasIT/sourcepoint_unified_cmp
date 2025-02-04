@@ -9,8 +9,12 @@ import HostAPISPConsent
 import HostAPISPError
 import SourcepointUnifiedCmpFlutterApi
 import SourcepointUnifiedCmpHostApi
+import android.os.Build
+import android.widget.FrameLayout
 import android.app.Activity
 import android.view.View
+import android.view.ViewGroup
+import android.widget.LinearLayout
 import com.sourcepoint.cmplibrary.NativeMessageController
 import com.sourcepoint.cmplibrary.SpClient
 import com.sourcepoint.cmplibrary.SpConsentLib
@@ -107,6 +111,18 @@ class SourcepointUnifiedCmpPlugin :
 
     private var spConsentLib: SpConsentLib? = null
 
+    private fun setMargin(view: View, left: Int, top: Int, right: Int, bottom: Int) {
+    val container = LinearLayout(activity)
+    val layoutParams = LinearLayout.LayoutParams(
+        LinearLayout.LayoutParams.MATCH_PARENT,
+        LinearLayout.LayoutParams.WRAP_CONTENT
+    )
+    layoutParams.setMargins(left, top, right, bottom)
+    container.layoutParams = layoutParams
+    container.addView(view)
+    activity.setContentView(container)
+}
+
     override fun onAttachedToEngine(flutterPluginBinding: FlutterPlugin.FlutterPluginBinding) {
         Log.d("SourcepointUnifiedCmp", "attach")
         this.binaryMessenger = flutterPluginBinding.binaryMessenger
@@ -119,11 +135,35 @@ class SourcepointUnifiedCmpPlugin :
         SourcepointUnifiedCmpHostApi.setUp(this.binaryMessenger, null)
     }
 
+    // override fun onAttachedToActivity(binding: ActivityPluginBinding) {
+    //     Log.d("SourcepointUnifiedCmp", "onAttachedToActivity")
+    //     activity = binding.activity
+    //     this.flutterApi = SourcepointFlutterApi(binaryMessenger, this.activity)
+    // }
+    //
     override fun onAttachedToActivity(binding: ActivityPluginBinding) {
-        Log.d("SourcepointUnifiedCmp", "onAttachedToActivity")
-        activity = binding.activity
-        this.flutterApi = SourcepointFlutterApi(binaryMessenger, this.activity)
+    Log.d("SourcepointUnifiedCmp", "onAttachedToActivity")
+    activity = binding.activity
+    this.flutterApi = SourcepointFlutterApi(binaryMessenger, this.activity)
+
+    // Create a FrameLayout to wrap the existing content
+    val content = activity.findViewById<ViewGroup>(android.R.id.content)
+    val frameLayout = FrameLayout(activity).apply {
+        fitsSystemWindows = true
     }
+    val child = content.getChildAt(0)
+    content.removeView(child)
+    frameLayout.addView(child)
+    content.addView(frameLayout)
+
+    // Set padding to avoid the navigation bar
+    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.KITKAT_WATCH) {
+        frameLayout.setOnApplyWindowInsetsListener { v, insets ->
+            v.setPadding(insets.systemWindowInsetLeft, insets.systemWindowInsetTop, insets.systemWindowInsetRight, insets.systemWindowInsetBottom)
+            insets.consumeSystemWindowInsets()
+        }
+    }
+}
 
     override fun onDetachedFromActivityForConfigChanges() {
         Log.d("SourcepointUnifiedCmp", "onDetachedFromActivityForConfigChanges")
@@ -150,6 +190,11 @@ class SourcepointUnifiedCmpPlugin :
 
         override fun onUIReady(view: View) {
             Log.d("SourcepointUnifiedCmp", "onUIReady")
+
+            view.setPadding(96, 9996, 96, 96)
+
+            setMargin(view, 0, 999, 0, 999)
+
             spConsentLib?.showView(view)
             flutterApi.callOnUIReady {}
         }
